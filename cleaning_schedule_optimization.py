@@ -10,9 +10,9 @@ This code was designed in conjunction with the following paper and should be cit
 
 
 Optimisation Problem:
-    minimise:       ∑_{i=1,...,n} f(Xi, bi) + ci·zi
-    subject to:     zi ∈ {0, 1}
-                    bi = accumulation of biofouling
+    minimise:       sum_{i=1,...,n} f(X[i], b[i]) + c[i]*z[i]
+    subject to:     z[i] in {0, 1}
+                    b[i] = accumulation of biofouling
 
 
 Variables:    
@@ -23,7 +23,7 @@ Variables:
     B[i]  = Measure of the additional biofouling due to voyage i.
     b[i]  = Cumulative measure of the total biofouling up to voyage i that resets to zero when cleaned.
     f     = Regression function that predicts the cost of a voyage.
-    z[i]  = The decision variable which take value 1 if we decide to clean before voyage i and 0 otherwise.
+    z[i]  = The decision variable which takes value 1 if we decide to clean before voyage i and 0 otherwise.
 
 
 File structure:
@@ -100,17 +100,15 @@ def algorithm_1_brute_force_search(
         X: Sequence,
         B: Sequence,
         f: Callable,
-        b0_is_B0: bool = False,
         verbose=3,
 ):
     """
     :param n:          Number of voyages. Should be an integer greater than one;
     :param b0:         Initial value of the biofouling measure. Non-negative float;
-    :param c:          Numpy array where c_i is the cost of cleaning before voyage i;
-    :param B:          Numpy array where B_i is the measure of biofouling that accumulates for voyage i;
-    :param X:          Array where P_i is the profile of voyage i;
+    :param c:          Numpy array where c[i] is the cost of cleaning before voyage i;
+    :param B:          Numpy array where B[i] is the measure of biofouling that accumulates for voyage i;
+    :param X:          Array where X[i] is the profile of voyage i.  Each element may be a DataFrame or other object;
     :param f:          Function f which outputs the cost given a voyage profile;
-    :param b0_is_B0:   Set this to true if B[0] = b0. Otherwise, we will set B = [b0] + B;
     :param verbose:    Level of output. Set to zero to supress all print statements;
     """
 
@@ -118,11 +116,8 @@ def algorithm_1_brute_force_search(
     if verbose:
         print("\n===== Brute Force =====")
 
-    # We wish B[0]=b_0 to refer to the initial biofouling and B[1] to refer to the first voyage
-    if not b0_is_B0:
-        B = np.array([b0] + list(B[:-1]))
-
-    # The objective function of the integer program ∑_{i=1,...,n} f(Xi, bi) + ci·zi
+    # The objective function of the integer program
+    # sum_{i=1,...,n}( f(X[i], b[i]) + c[i]*z[i] )
     def objective(_z):
         b = np.zeros(n, dtype=float)
         count = b0
@@ -142,15 +137,19 @@ def algorithm_1_brute_force_search(
     z_best = None
     obj_best = np.inf
 
-    # Iterate though every combination of decision variables
+    # Iterate through every combination of decision variables
     # I.e. (0, 0, ...) then (1, 0, ...) then (0, 1, ...) then (1, 1, ...) and so on
-    for z in itertools.product((0, 1), repeat=n):
+    for progress, z in enumerate(itertools.product((0, 1), repeat=n)):
         obj = objective(z)
 
         # Maintain the best solution so far
         if obj < obj_best:
             obj_best = obj
             z_best = z
+
+        # Update
+        if verbose >= 2 and (progress+1) in (((2**n)*p)//100 for p in range(20, 101, 20)):
+            print(f"   {progress+1:>3} out of {2**n} combinations searched ({(progress+1)/(2**n):.1%})")
 
     # Output results to console
     if verbose:
@@ -173,13 +172,18 @@ def algorithm_2_dynamic_cleaning_schedule_optimiser(
     """
     :param n:          Number of voyages. Should be an integer greater than one;
     :param b0:         Initial value of the biofouling measure. Non-negative float;
-    :param c:          Numpy array where c_i is the cost of cleaning before voyage i;
-    :param B:          Numpy array where B_i is the measure of biofouling that accumulates for voyage i;
-    :param X:          Array where P_i is the profile of voyage i;
+    :param c:          Numpy array where c[i] is the cost of cleaning before voyage i;
+    :param B:          Numpy array where B[i] is the measure of biofouling that accumulates for voyage i;
+    :param X:          Array where X[i] is the profile of voyage i.  Each element may be a DataFrame or other object;
     :param f:          Function f which outputs the cost given a voyage profile;
     :param b0_is_B0:   Set this to true if B[0] = b0. Otherwise, we will set B = [b0] + B;
     :param verbose:    Level of output. Set to zero to supress all print statements;
     """
+
+    # Validation
+    assert len(c) >= n, f"Invalid parameterization: len(c)={len(c)} should be equal to n={n}."
+    assert len(B) >= n, f"Invalid parameterization: len(B)={len(B)} should be equal to n={n}."
+    assert len(X) >= n, f"Invalid parameterization: len(X)={len(X)} should be equal to n={n}."
 
     # Title
     if verbose:
@@ -195,16 +199,16 @@ def algorithm_2_dynamic_cleaning_schedule_optimiser(
 
     # We wish B[0]=b_0 to refer to the initial biofouling and B[1] to refer to the first voyage
     if not b0_is_B0:
-        B = np.array([b0] + list(B[:-1]))
+        B = np.concatenate((np.array([b0]), B[:-1]))
 
     # Vector of zeros
     zero = 0 if len(B.shape) == 1 else np.zeros(B.shape[1])
 
-    # Work backwards though the voyages
+    # Work backwards through the voyages
     for i in reversed(range(n)):
 
         if verbose >= 2:
-            print(f" --- Voyage {i + 1} --- ")
+            print(f"   --- Voyage {i + 1} ---")
 
         # The cost assuming we clean at voyage i is the sum of
         #   + The cost of cleaning C[i]
@@ -244,7 +248,7 @@ def algorithm_2_dynamic_cleaning_schedule_optimiser(
 
     # Output results to console
     if verbose:
-        print(" --- Results ---")
+        print("   --- Results ---")
         print(f"Optimal cleaning schedule z*:   {Psi[0][0]}")
         print(f"Optimal object value ($cost):   {Phi[0][0]:.2f}")
 
@@ -265,10 +269,8 @@ def main():
 if __name__ == '__main__':
     main()
 
-
 __author__ = "Samuel Ward"
 __maintainer__ = "Samuel Ward"
 __email__ = "s.ward@soton.ac.uk"
 __credits__ = ["Samuel Ward", "Marah-Lisanne Thormann"]
-__version__ = "7.0.1"
-
+__version__ = "7.0.2"
