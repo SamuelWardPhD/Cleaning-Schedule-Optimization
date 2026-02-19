@@ -7,6 +7,7 @@ from typing import Callable, Sequence
 This code was designed in conjunction with the following paper and should be cited as:
     Samuel Ward, Marah-Lisanne Thormann, Julian Wharton and Alain Zemkoho (2026).
     Data-Driven Hull-Fouling Cleaning Schedule Optimization to Reduce Carbon Footprint of Vessels.
+    https://doi.org/10.48550/arXiv.2602.11248
 
 
 Optimisation Problem:
