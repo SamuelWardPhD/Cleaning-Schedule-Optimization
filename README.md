@@ -1,9 +1,10 @@
 # Cleaning Schedule Optimization
 
-This repository provides the official Python implementation accompanying the following academic paper, which should be cited alongside any use of the code:
+This repository provides the official Python implementation accompanying the following paper, [https://doi.org/10.48550/arXiv.2602.11248](https://doi.org/10.48550/arXiv.2602.11248), which should be cited alongside any use of the code:
 
-    Samuel Ward, Marah-Lisanne Thormann, Julian Wharton and Alain Zemkoho (2026).  
-    Data-Driven Hull-Fouling Cleaning Schedule Optimization to Reduce Carbon Footprint of Vessels.
+    Samuel Ward, Marah-Lisanne Thormann, Julian Wharton and Alain Zemkoho (2026). 
+    "Data-Driven Hull-Fouling Cleaning Schedule Optimization to Reduce Carbon Footprint of Vessels", 
+    arXiv preprint arXiv:2602.11248.
 
 
 
